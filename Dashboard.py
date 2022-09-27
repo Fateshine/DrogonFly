@@ -360,9 +360,9 @@ def update_picture(drone, detection,n_intervals):
         client = MongoClient("mongodb://127.0.0.1:27017/")
         mydb = client["Command"]
         collection_win = mydb.wins
+        collection_drone=mydb.drones
         window1 = pd.DataFrame(list(collection_win.find()))
-        drone = pd.DataFrame(list(collection_win.find())).query(
-        'win == "Close" and fire == "None" and hum == "None"')
+        drone = pd.DataFrame(list(collection_drone.find()))
         result[0] = pd.DataFrame(list(collection_win.find())).query(
         'win == "Close" and fire == "Burn" and hum == "None"')
         result[1] = pd.DataFrame(list(collection_win.find())).query(
@@ -452,18 +452,18 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
             id = clickdata["points"][0]["customdata"][0]
             if "window" in add_task2:
                 event = "win"
-                data = pd.DataFrame([[x, y, z, event, id, sig, freq]], columns=[
-                                    "x", "y", "z", "event", "id", "sig", "freq"])
+                data = pd.DataFrame([[id, x, y, z, event, sig, freq]], columns=[
+                                    "id", "x", "y", "z", "event", "sig", "freq"])
                 add_task[2]=pd.concat([add_task[2],data])
             elif "fire" in add_task2:
                 event = "fire"
-                data = pd.DataFrame([[x, y, z, event, id, sig, freq]], columns=[
-                                    "x", "y", "z", "event", "id", "sig", "freq"])
+                data = pd.DataFrame([[id, x, y, z, event, sig, freq]], columns=[
+                                    "id", "x", "y", "z", "event", "sig", "freq"])
                 add_task[0]=pd.concat([add_task[0],data])
             elif "people" in add_task2:
                 event = "hum"
-                data = pd.DataFrame([[x, y, z, event, id, sig, freq]], columns=[
-                                    "x", "y", "z", "event", "id", "sig", "freq"])
+                data = pd.DataFrame([[id, x, y, z, event, sig, freq]], columns=[
+                                    "id", "x", "y", "z", "event", "sig", "freq"])
                 add_task[1]=pd.concat([add_task[1],data])
     elif input_id == "submit_btn":
         client = MongoClient("mongodb://127.0.0.1:27017/")

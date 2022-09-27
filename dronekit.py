@@ -282,7 +282,7 @@ def goto(dNorth, dEast,dalt,speed):
             break;
         time.sleep(2)
     
-def fly(waypoint,speed,simspeed):
+def fly(waypoint,speed):
     arm_and_takeoff(5)
     vehicle.airspeed = speed
     global f 
@@ -309,7 +309,7 @@ def fly(waypoint,speed,simspeed):
     return 
 
 # waypoint=[[50,50,10],[20,20,10]]
-# fly(waypoint,10,2)
+# fly(waypoint,10)
 # path = 'output.txt'
 # start = time.time()
 # with open(path, 'w') as f:
