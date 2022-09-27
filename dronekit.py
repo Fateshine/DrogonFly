@@ -1,12 +1,12 @@
 from __future__ import print_function
 
-from dronekit import connect, VehicleMode, LocationGlobal, LocationGlobalRelative
+from dronekit import connect, VehicleMode, LocationGlobal, LocationGlobalRelative,Locations,LocationLocal
 from pymavlink import mavutil # Needed for command message definitions
 import time
 import math
-
-
-#Set up option parsing to get connection string
+import argparse  
+import dronekit_sitl
+# #Set up option parsing to get connection string
 # import argparse  
 # parser = argparse.ArgumentParser(description='Control Copter and send commands in GUIDED mode ')
 # parser.add_argument('--connect', 
@@ -16,19 +16,39 @@ import math
 # connection_string = args.connect
 # sitl = None
 
+# #Start SITL if no connection string specified
+#     if not connection_string:
+#         import dronekit_sitl
+#         sitl = dronekit_sitl.start_default()
+#         connection_string = sitl.connection_string()
 
-#Start SITL if no connection string specified
 
-import dronekit_sitl
-sitl = dronekit_sitl.start_default()
-connection_string = sitl.connection_string()
-
-
-# Connect to the Vehicle
-print('Connecting to vehicle on: %s' % connection_string)
-vehicle = connect(connection_string, wait_ready=True)
+# # Connect to the Vehicle
+# print('Connecting to vehicle on: %s' % connection_string)
+# vehicle = connect(connection_string, wait_ready=True)
 
 def arm_and_takeoff(aTargetAltitude):
+        #Set up option parsing to get connection string
+        parser = argparse.ArgumentParser(description='Control Copter and send commands in GUIDED mode ')
+        parser.add_argument('--connect', 
+                        help="Vehicle connection target string. If not specified, SITL automatically started and used.")
+        args = parser.parse_args()
+
+        connection_string = args.connect
+        global sitl
+        sitl = None
+
+        #Start SITL if no connection string specified
+        if not connection_string:
+            sitl = dronekit_sitl.start_default()
+            connection_string = sitl.connection_string()
+
+
+        # Connect to the Vehicle
+        print('Connecting to vehicle on: %s' % connection_string)
+        global vehicle 
+        vehicle = connect(connection_string, wait_ready=True)
+
         """
         Arms vehicle and fly to aTargetAltitude.
         """
@@ -61,7 +81,7 @@ def arm_and_takeoff(aTargetAltitude):
                 break
             time.sleep(1)
 #Arm and take of to altitude of 5 meters
-arm_and_takeoff(5)
+
 
 
 """
@@ -117,7 +137,8 @@ def get_location_metres(original_location, dNorth, dEast,Alt):
     if type(original_location) is LocationGlobal:
         targetlocation=LocationGlobal(newlat, newlon,newalt)
     elif type(original_location) is LocationGlobalRelative:
-        targetlocation=LocationGlobalRelative(newlat, newalt)
+        targetlocation=LocationGlobalRelative(newlat, newlon,newalt)
+        print("RRRRRRRRRRRRRRRRRRRR")
     else:
         raise Exception("Invalid Location object passed")
         
@@ -135,7 +156,7 @@ def get_distance_metres(aLocation1, aLocation2):
     dlat = aLocation2.lat - aLocation1.lat
     dlong = aLocation2.lon - aLocation1.lon
     dalt = aLocation2.alt - aLocation1.alt
-    return math.sqrt((dlat*dlat) + (dlong*dlong) + (dalt*dalt)) * 1.113195e5
+    return math.pow(((dlat*dlat) + (dlong*dlong))* 1.113195e5 + (dalt*dalt), 1.0/3 ) 
 
 
 def get_bearing(aLocation1, aLocation2):
@@ -226,7 +247,7 @@ def goto_position_target_local_ned(north, east, down):
 
 
 
-def goto(dNorth, dEast, gotoFunction=vehicle.simple_goto):
+def goto(dNorth, dEast,dalt,speed):
     """
     Moves the vehicle to a position dNorth metres North and dEast metres East of the current position.
 
@@ -238,37 +259,58 @@ def goto(dNorth, dEast, gotoFunction=vehicle.simple_goto):
     """
     
     currentLocation = vehicle.location.global_relative_frame
-    targetLocation = get_location_metres(currentLocation, dNorth, dEast)
+    targetLocation = get_location_metres(currentLocation, dNorth, dEast,dalt)
     targetDistance = get_distance_metres(currentLocation, targetLocation)
-    gotoFunction(targetLocation)
+    vehicle.simple_goto(targetLocation,airspeed=speed)
     
     #print "DEBUG: targetLocation: %s" % targetLocation
     #print "DEBUG: targetLocation: %s" % targetDistance
-
     while vehicle.mode.name=="GUIDED": #Stop action if we are no longer in guided mode.
         #print "DEBUG: mode: %s" % vehicle.mode.name
         remainingDistance=get_distance_metres(vehicle.location.global_relative_frame, targetLocation)
         print("Distance to target: ", remainingDistance)
+        print("Current location: ",vehicle.location.local_frame)
+        print("Current Speed: ",vehicle.airspeed)
+        f.write("Distance to target: "+ str(remainingDistance))
+        f.write("Current location: "+ str(vehicle.location.global_frame))
+        f.write("Current Speed: "+ str(vehicle.airspeed))
         if remainingDistance<=targetDistance*0.01: #Just below target, in case of undershoot.
             print("Reached target")
             break;
         time.sleep(2)
-
-def fly(waypoint,speed):
+    
+def fly(waypoint,speed,simspeed):
+    arm_and_takeoff(5)
     vehicle.airspeed = speed
+    global f 
+    f = open('output.txt','w')
+    # while vehicle.parameters['SIM_SPEEDUP'] != simspeed:
+    #     print("Setting SIM_SPEEDUP")
+    #     vehicle.parameters['SIM_SPEEDUP'] = simspeed
+    #     time.sleep(0.1)
     for point in waypoint:
-        goto(point[0], point[1], point[2],goto_position_target_global_int)
+        goto(point[0], point[1], point[2],speed)
+
     print("Setting LAND mode...")
     vehicle.mode = VehicleMode("LAND")
 
-
-    #Close vehicle object before exiting script
+    #Close vehicle object before exiting script 
     print("Close vehicle object")
     vehicle.close()
-
+    f.close()
     # Shut down simulator if it was started.
     if sitl is not None:
         sitl.stop()
 
     print("Completed")
     return 
+
+# waypoint=[[50,50,10],[20,20,10]]
+# fly(waypoint,10,2)
+# path = 'output.txt'
+# start = time.time()
+# with open(path, 'w') as f:
+#     f.write('123')
+#     fly(waypoint,10,2)
+# end = time.time()
+# print("執行時間：%f 秒" % (end - start))
