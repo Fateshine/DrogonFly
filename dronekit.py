@@ -6,6 +6,7 @@ import time
 import math
 import argparse  
 import dronekit_sitl
+from datetime import datetime
 # #Set up option parsing to get connection string
 # import argparse  
 # parser = argparse.ArgumentParser(description='Control Copter and send commands in GUIDED mode ')
@@ -271,9 +272,11 @@ def goto(dNorth, dEast,dalt,speed):
         print("Distance to target: ", remainingDistance)
         print("Current location: ",vehicle.location.local_frame)
         print("Current Speed: ",vehicle.airspeed)
+        print("Current Time " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S %p")))
         f.write("Distance to target: "+ str(remainingDistance))
         f.write("Current location: "+ str(vehicle.location.global_frame))
         f.write("Current Speed: "+ str(vehicle.airspeed))
+        f.write("Current Time " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S %p")))
         if remainingDistance<=targetDistance*0.01: #Just below target, in case of undershoot.
             print("Reached target")
             break;
