@@ -6,6 +6,7 @@ import pandas as pd
 from fire_sim import Sim_fire2
 import numpy as np
 from collections import defaultdict
+import paho.mqtt.client as mqtt
 import plotly.express as px
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
@@ -21,7 +22,7 @@ tag_drone = True
 tag_task = [True]*3
 tag_result = [True]*3
 tag_add_task = [True]*3
-drone = pd.DataFrame()
+drone=pd.DataFrame()
 result = [pd.DataFrame()]*3
 task = [pd.DataFrame()]*3
 add_task = [pd.DataFrame()]*3
@@ -342,12 +343,12 @@ app.layout = html.Div([
     Input("current_detection", "value"),
     Input("interval_db",'n_intervals')
 )
-def update_picture(drone, detection,n_intervals):
+def update_picture(drone_tag, detection,n_intervals):
     ctx = callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
     global tag_drone,window1,result
     if input_id == "current_drone":
-        tag_drone = True if "drone" in drone else False
+        tag_drone = True if "drone" in drone_tag else False
     # elif input_id == "current_task":
     #     tag_task[0] = True if "fire" in task else False
     #     tag_task[1] = True if "people" in task else False
@@ -356,31 +357,31 @@ def update_picture(drone, detection,n_intervals):
         tag_result[0] = True if "fire" in detection else False
         tag_result[1] = True if "people" in detection else False
         tag_result[2] = True if "window" in detection else False
-    elif input_id == "interval_db":
-        client = MongoClient("mongodb://127.0.0.1:27017/")
-        mydb = client["Command"]
-        collection_win = mydb.wins
-        collection_drone=mydb.drones
-        window1 = pd.DataFrame(list(collection_win.find()))
-        drone = pd.DataFrame(list(collection_drone.find()))
-        result[0] = pd.DataFrame(list(collection_win.find())).query(
-        'win == "Close" and fire == "Burn" and hum == "None"')
-        result[1] = pd.DataFrame(list(collection_win.find())).query(
-        'win == "Close" and fire == "None" and hum == "have"')
-        result[2] = pd.DataFrame(list(collection_win.find())).query(
-        'win == "Open" and fire == "None" and hum == "None"')
+    # elif input_id == "interval_db":
+    #     client = MongoClient("mongodb://127.0.0.1:27017/")
+    #     mydb = client["Command"]
+    #     collection_win = mydb.wins
+    #     collection_drone=mydb.drones
+    #     window1 = pd.DataFrame(list(collection_win.find()))
+    #     drone = pd.DataFrame(list(collection_drone.find()))
+    #     result[0] = pd.DataFrame(list(collection_win.find())).query(
+    #     'win == "Close" and fire == "Burn" and hum == "None"')
+    #     result[1] = pd.DataFrame(list(collection_win.find())).query(
+    #     'win == "Close" and fire == "None" and hum == "have"')
+    #     result[2] = pd.DataFrame(list(collection_win.find())).query(
+    #     'win == "Open" and fire == "None" and hum == "None"')
     figure = go.Figure()
     customdata = [[row.id] for row in window1.itertuples()]
     figure.add_trace(go.Scatter3d(x=window1["x"], y=window1["y"], z=window1["z"],customdata=customdata,
                                   mode='markers', marker=dict(color="#979595")))
-    # if tag_drone and not drone[i].empty: 
-    #     figure.add_trace(go.Scatter3d(x=drone["x"], y=drone["y"], z=drone["z"],
-    #                                   mode='markers', marker=dict(color=color[i])))
+    if tag_drone and not drone.empty: 
+        figure.add_trace(go.Scatter3d(x=drone["x"], y=drone["y"], z=drone["z"],
+                                      mode='markers', marker=dict(color="#00008B")))
     for i in range(3):
         if tag_result[i] and not result[i].empty:
             # customdata = [[result[i]['id'][j], result[i]["detection time"]
             #                [j], result[i]["result"][j],result[i]["img"][j],icon[i]] for j in range(len(result[i]))]
-            customdata=[[i,i,i,"",icon[i]] for j in range(len(result[i]))]
+            customdata=[[row.id,row.accuracy,row.detecton_time,icon[i]] for row in result[i].itertuples()]
             figure.add_trace(go.Scatter3d(x=result[i]["x"], y=result[i]["y"], z=result[i]["z"],customdata=customdata,
                                           mode='markers', marker=dict(color=color[i+4])))
     figure.update_layout(scene=dict(
@@ -395,22 +396,22 @@ def update_picture(drone, detection,n_intervals):
     Output('current_Loc', 'children'),
     Output('current_detection_time', 'children'),
     Output('current_result', 'children'),
-    Output('result_img', 'src'),
+    # Output('result_img', 'src'),
     Output('result_icon','src'),
     Input('current_graph', 'clickData'))
 def update_info(clickdata):
     loc = clickdata["points"][0]["customdata"][0]
     if len(clickdata["points"][0]["customdata"])>2:
         dec = clickdata["points"][0]["customdata"][1]
-        result = clickdata["points"][0]["customdata"][2]
-        img_file = clickdata["points"][0]["customdata"][3]
-        icon=clickdata["points"][0]["customdata"][4]
+        accuracy = clickdata["points"][0]["customdata"][2]
+        # img_file = clickdata["points"][0]["customdata"][3]
+        icon=clickdata["points"][0]["customdata"][3]
     else:
         dec=""
-        result=""
-        img_file=""
+        accuracy=""
+        # img_file=""
         icon=""
-    return  F"Loc:W{loc}",F"detection time:{dec}", F"result:{result}",app.get_asset_url(img_file) ,app.get_asset_url(icon)
+    return  F"Loc:W{loc}",F"detection time:{dec}", F"raccuracy:{accuracy}" ,app.get_asset_url(icon)
 
 
 @app.callback(
@@ -475,6 +476,7 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 # collection_task.update_one({'id': id}, {'$set': {'event': data["event"]}})
                 collection_task.insert_many(add_task[i].to_dict('records'))
                 add_task[i]=add_task[i].iloc[0:0]
+        client.publish("task", "task has been update")
     elif input_id == "delete_btn":
         if len(clickdata["points"][0]["customdata"])>1:
             id = clickdata["points"][0]["customdata"][0]
@@ -486,6 +488,7 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 data=pd.DataFrame(task[tag]['id']==id)
                 task[tag]=task[tag].loc[task[tag]['id']!=id]
                 collection_task.delete_one({"id":id})
+                client.publish("task", "task has been update")
             else:
                 data=pd.DataFrame(task[tag-3]['id']==id)
                 add_task[tag-3]=add_task[tag-3].loc[task[tag-3]['id']!=id]
@@ -650,11 +653,56 @@ def update_fire_sim():
                           "z":row["v_1_z"], 'win': 'Close', 'fire': 'None', 'hum': 'None'}
                 collection.insert_one(record)
     return
+# 當地端程式連線伺服器得到回應時，要做的動作
+def on_connect(client, userdata, flags, rc):
+    print("Connected with result code "+str(rc))
+
+    # 將訂閱主題寫在on_connet中
+    # 如果我們失去連線或重新連線時 
+    # 地端程式將會重新訂閱
+    client.subscribe([("drone", 0), ("result", 0)])
+
+# 當接收到從伺服器發送的訊息時要進行的動作
+def on_message(client, userdata, msg):
+    # 轉換編碼utf-8才看得懂中文
+    global drone
+    print(msg.topic+" "+ msg.payload.decode('utf-8'))
+    topic=msg.topic
+    msg=msg.payload.decode('utf-8').split(",")
+    if topic == "drone":
+        # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z"])
+        # if msg[0] in drone["id"].values:
+        #     drone.loc[drone['id']==msg[0]]=new_data
+        # else:
+        #     drone=pd.concat([drone,new_data])
+        drone = pd.DataFrame(list(collection_drone.find()))
+    elif topic == "result":
+        # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
+        # if msg[4]=="win":
+        #     tag=0
+        # elif msg[4]=="fire":
+        #     tag=1
+        # elif msg[4]=="hum":
+        #     tag=2
+        # else:
+        #     return
+        # if msg[0] in result[tag]["id"].values:
+        #     result[tag].loc[result[tag]['id']==msg[0]]=new_data
+        # else:
+        #     result[tag]=pd.concat([result[tag],new_data])
+        result[0] = pd.DataFrame(list(collection_win.find())).query(
+        'win == "Close" and fire == "Burn" and hum == "None"')
+        result[1] = pd.DataFrame(list(collection_win.find())).query(
+        'win == "Close" and fire == "None" and hum == "have"')
+        result[2] = pd.DataFrame(list(collection_win.find())).query(
+        'win == "Open" and fire == "None" and hum == "None"')
 if __name__ == '__main__':
     client = MongoClient("mongodb://127.0.0.1:27017/")
     mydb = client["Command"]
     collection_win = mydb.wins
     collection_tasks=mydb.tasks
+    collection_drone=mydb.drones
+    drone = pd.DataFrame(list(collection_drone.find()))
     window1 = pd.DataFrame(list(collection_win.find()))
     window2 = pd.DataFrame(list(collection_win.find()))
     result[0] = pd.DataFrame(list(collection_win.find())).query(
@@ -667,4 +715,19 @@ if __name__ == '__main__':
         task[0] = pd.DataFrame(list(collection_tasks.find())).query('event=="win"')
         task[1] = pd.DataFrame(list(collection_tasks.find())).query('event=="fire"')
         task[2] = pd.DataFrame(list(collection_tasks.find())).query('event=="hum"')
+    drone=pd.DataFrame([[222, 40, 40, 23]], columns=["id", "x", "y", "z"])
+    # 連線設定
+    # 初始化地端程式
+    client = mqtt.Client()
+    # 設定連線的動作
+    client.on_connect = on_connect
+    # 設定接收訊息的動作
+    client.on_message = on_message
+    # 設定登入帳號密碼
+    # client.username_pw_set("try","xxxx")
+    # 設定連線資訊(IP, Port, 連線時間)
+    client.connect("140.114.89.210", 1883)
+    # 開始連線，執行設定的動作和處理重新連線問題
+    # 也可以手動使用其他loop函式來進行連接
+    client.loop_start()
     app.run_server(debug=True)
