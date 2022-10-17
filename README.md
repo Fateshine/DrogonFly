@@ -15,5 +15,7 @@ collection_drone {id,x,y,z}
 This dashboard will subscribe to two topics {"drone","result"}  
 Please publish a message to the specified topic if the relevant data in the database has been updated  
 If firefighter assign new task, the dashboard will publish message to topic{"task"}   
-Note:The content of the message is not important at present, because it is only used to trigger MongoDB
+Note:The content of the message is not important at present, because it is only used to trigger MongoDB  
+
+***Remember to modify MongoDB & MQTT client***
 
