@@ -381,7 +381,8 @@ def update_picture(drone_tag, detection,n_intervals):
         if tag_result[i] and not result[i].empty:
             # customdata = [[result[i]['id'][j], result[i]["detection time"]
             #                [j], result[i]["result"][j],result[i]["img"][j],icon[i]] for j in range(len(result[i]))]
-            customdata=[[row.id,row.accuracy,row.detecton_time,icon[i]] for row in result[i].itertuples()]
+            # customdata=[[row.id,row.accuracy,row.detecton_time,icon[i]] for row in result[i].itertuples()]
+            customdata=[[i,i,i,icon[i]] for row in result[i].itertuples()]
             figure.add_trace(go.Scatter3d(x=result[i]["x"], y=result[i]["y"], z=result[i]["z"],customdata=customdata,
                                           mode='markers', marker=dict(color=color[i+4])))
     figure.update_layout(scene=dict(
@@ -476,7 +477,7 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 # collection_task.update_one({'id': id}, {'$set': {'event': data["event"]}})
                 collection_task.insert_many(add_task[i].to_dict('records'))
                 add_task[i]=add_task[i].iloc[0:0]
-        client.publish("task", "task has been update")
+        client_MQTT.publish("task", "task has been update")
     elif input_id == "delete_btn":
         if len(clickdata["points"][0]["customdata"])>1:
             id = clickdata["points"][0]["customdata"][0]
@@ -488,7 +489,7 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 data=pd.DataFrame(task[tag]['id']==id)
                 task[tag]=task[tag].loc[task[tag]['id']!=id]
                 collection_task.delete_one({"id":id})
-                client.publish("task", "task has been update")
+                client_MQTT.publish("task", "task has been update")
             else:
                 data=pd.DataFrame(task[tag-3]['id']==id)
                 add_task[tag-3]=add_task[tag-3].loc[task[tag-3]['id']!=id]
@@ -501,9 +502,11 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
     customdata = [[row.id] for row in window2.itertuples()]
     figure.add_trace(go.Scatter3d(x=window2["x"], y=window2["y"], z=window2["z"],customdata=customdata,
                                   mode='markers', marker=dict(color="#979595")))
+
     for i in range(3):
         if tag_task[i] and not task[i].empty:
             customdata = [[row.id,row.sig,row.freq,i] for row in task[i].itertuples()]
+            print(task[i]["x"])
             figure.add_trace(go.Scatter3d(x=task[i]["x"], y=task[i]["y"], z=task[i]["z"],customdata=customdata,
                                           mode='markers', marker=dict(color=color[i+4])))
     for i in range(3):
@@ -653,18 +656,11 @@ def update_fire_sim():
                           "z":row["v_1_z"], 'win': 'Close', 'fire': 'None', 'hum': 'None'}
                 collection.insert_one(record)
     return
-# 當地端程式連線伺服器得到回應時，要做的動作
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
-
-    # 將訂閱主題寫在on_connet中
-    # 如果我們失去連線或重新連線時 
-    # 地端程式將會重新訂閱
     client.subscribe([("drone", 0), ("result", 0)])
 
-# 當接收到從伺服器發送的訊息時要進行的動作
 def on_message(client, userdata, msg):
-    # 轉換編碼utf-8才看得懂中文
     global drone
     print(msg.topic+" "+ msg.payload.decode('utf-8'))
     topic=msg.topic
@@ -676,6 +672,7 @@ def on_message(client, userdata, msg):
         # else:
         #     drone=pd.concat([drone,new_data])
         drone = pd.DataFrame(list(collection_drone.find()))
+        print(drone)
     elif topic == "result":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
         # if msg[4]=="win":
@@ -712,22 +709,13 @@ if __name__ == '__main__':
     result[2] = pd.DataFrame(list(collection_win.find())).query(
         'win == "Open" and fire == "None" and hum == "None"')
     if len(list(collection_tasks.find())) >=1 :
-        task[0] = pd.DataFrame(list(collection_tasks.find())).query('event=="win"')
-        task[1] = pd.DataFrame(list(collection_tasks.find())).query('event=="fire"')
-        task[2] = pd.DataFrame(list(collection_tasks.find())).query('event=="hum"')
-    drone=pd.DataFrame([[222, 40, 40, 23]], columns=["id", "x", "y", "z"])
-    # 連線設定
-    # 初始化地端程式
-    client = mqtt.Client()
-    # 設定連線的動作
-    client.on_connect = on_connect
-    # 設定接收訊息的動作
-    client.on_message = on_message
-    # 設定登入帳號密碼
-    # client.username_pw_set("try","xxxx")
-    # 設定連線資訊(IP, Port, 連線時間)
-    client.connect("140.114.89.210", 1883)
-    # 開始連線，執行設定的動作和處理重新連線問題
-    # 也可以手動使用其他loop函式來進行連接
-    client.loop_start()
+        task[0] = pd.DataFrame(list(collection_tasks.find())).query('event=="fire"')
+        task[1] = pd.DataFrame(list(collection_tasks.find())).query('event=="hum"')
+        task[2] = pd.DataFrame(list(collection_tasks.find())).query('event=="win"')
+   
+    client_MQTT = mqtt.Client()
+    client_MQTT.on_connect = on_connect
+    client_MQTT.on_message = on_message
+    client_MQTT.connect("127.0.0.1", 1883)
+    client_MQTT.loop_start()
     app.run_server(debug=True)
