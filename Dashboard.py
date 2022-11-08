@@ -4,6 +4,8 @@ import dash_bootstrap_components as dbc
 from numpy import False_, append
 import pandas as pd
 from fire_sim import Sim_fire2
+from sklearn import preprocessing
+import math
 import numpy as np
 from collections import defaultdict
 import paho.mqtt.client as mqtt
@@ -26,6 +28,8 @@ drone=pd.DataFrame()
 result = [pd.DataFrame()]*3
 task = [pd.DataFrame()]*3
 add_task = [pd.DataFrame()]*3
+arrow_starting_ratio=0.95
+arrow_tip_ratio = 0.1
 icon=["fires.png","peoples.png","windows.png"]
 color = ["#0D7DDA", "#F1BAD5", "#BAE38E",
          "#F5F3A1", "#EA1616", "#0CDB28", "#E39E0A", "#DA1DC7", "#A230E5", "#ED082A"]
@@ -340,10 +344,10 @@ app.layout = html.Div([
     Output("current_graph", "figure"),
     Input("current_drone", "value"),
     # Input("current_task", "value"),
-    Input("current_detection", "value"),
-    Input("interval_db",'n_intervals')
+    Input("current_detection", "value")
+    # Input("interval_db",'n_intervals')
 )
-def update_picture(drone_tag, detection,n_intervals):
+def update_picture(drone_tag, detection):
     ctx = callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
     global tag_drone,window1,result
@@ -371,12 +375,37 @@ def update_picture(drone_tag, detection,n_intervals):
     #     result[2] = pd.DataFrame(list(collection_win.find())).query(
     #     'win == "Open" and fire == "None" and hum == "None"')
     figure = go.Figure()
+    figure.add_trace(go.Mesh3d(x=[32.81,32.81,0,0,32.81,32.81,0,0],y=[58.37,25.56,25.56,58.37,58.37,25.56,25.56,58.37],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
+    figure.add_trace(go.Mesh3d(x=[68.38,68.38,3.53,3.53,68.38,68.38,3.53,3.53],y=[25.56,0,0,25.56,25.56,0,0,25.56],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     customdata = [[row.id] for row in window1.itertuples()]
     figure.add_trace(go.Scatter3d(x=window1["x"], y=window1["y"], z=window1["z"],customdata=customdata,
-                                  mode='markers', marker=dict(color="#979595")))
+                                  mode='markers', marker=dict(color="#979595",symbol="square",size=6)))
     if tag_drone and not drone.empty: 
-        figure.add_trace(go.Scatter3d(x=drone["x"], y=drone["y"], z=drone["z"],
-                                      mode='markers', marker=dict(color="#00008B")))
+        for i in range(drone["Drone"].idxmax()+1):
+            drone_tmp=drone.loc[drone['Drone'] == i].reset_index()
+            figure.add_trace(go.Scatter3d(x=drone_tmp["x"], y=drone_tmp["y"], z=drone_tmp["z"],
+                                        line=dict(width=2,color=f'rgb({np.random.randint(0,256)}, {np.random.randint(0,256)}, {np.random.randint(0,256)})')))
+            for i in range(drone_tmp.shape[0]-1):
+                related_dir_x=drone_tmp["x"][i+1] - drone_tmp["x"][i]
+                related_dir_y=drone_tmp["y"][i+1] - drone_tmp["y"][i]
+                related_dir_z=drone_tmp["z"][i+1] - drone_tmp["z"][i]
+                sum=abs(related_dir_x)+abs(related_dir_y)+abs(related_dir_z)
+                if sum <30:
+                     global arrow_tip_ratio,arrow_starting_ratio
+                     arrow_tip_ratio = 0.5 
+                     arrow_starting_ratio=0.8          
+                figure.add_trace(go.Cone(
+                x=[drone_tmp["x"][i] + arrow_starting_ratio*(related_dir_x)],
+                y=[drone_tmp["y"][i] + arrow_starting_ratio*(related_dir_y)],
+                z=[drone_tmp["z"][i] + arrow_starting_ratio*(related_dir_z)],
+                u=[arrow_tip_ratio*(related_dir_x)],
+                v=[arrow_tip_ratio*(related_dir_y)],
+                w=[arrow_tip_ratio*(related_dir_z)],
+                showlegend=False,
+                showscale=False,
+                ))
+                arrow_tip_ratio=0.1
+                arrow_starting_ratio=0.95
     for i in range(3):
         if tag_result[i] and not result[i].empty:
             # customdata = [[result[i]['id'][j], result[i]["detection time"]
@@ -384,10 +413,10 @@ def update_picture(drone_tag, detection,n_intervals):
             # customdata=[[row.id,row.accuracy,row.detecton_time,icon[i]] for row in result[i].itertuples()]
             customdata=[[i,i,i,icon[i]] for row in result[i].itertuples()]
             figure.add_trace(go.Scatter3d(x=result[i]["x"], y=result[i]["y"], z=result[i]["z"],customdata=customdata,
-                                          mode='markers', marker=dict(color=color[i+4])))
+                                          mode='markers', marker=dict(color=color[i+4],symbol="square",size=6)))
     figure.update_layout(scene=dict(
-        xaxis=dict(nticks=4, range=[-10, 70],),
-        yaxis=dict(nticks=4, range=[-10, 70],),
+        xaxis=dict(nticks=4, range=[-10, 80],),
+        yaxis=dict(nticks=4, range=[-30, 70],),
         zaxis=dict(nticks=4, range=[-10, 40],),),
         width=800, height=800, showlegend=False)
     return figure
@@ -468,7 +497,7 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                                     "id", "x", "y", "z", "event", "sig", "freq"])
                 add_task[1]=pd.concat([add_task[1],data])
     elif input_id == "submit_btn":
-        client = MongoClient("mongodb://127.0.0.1:27017/")
+        client = MongoClient("mongodb://140.114.89.210:27017/")
         mydb = client["Command"]
         collection_task = mydb.tasks
         for i in range(3):
@@ -477,19 +506,19 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 # collection_task.update_one({'id': id}, {'$set': {'event': data["event"]}})
                 collection_task.insert_many(add_task[i].to_dict('records'))
                 add_task[i]=add_task[i].iloc[0:0]
-        client_MQTT.publish("task", "task has been update")
+        client_MQTT.publish("task", "100")
     elif input_id == "delete_btn":
         if len(clickdata["points"][0]["customdata"])>1:
             id = clickdata["points"][0]["customdata"][0]
             tag=clickdata["points"][0]["customdata"][3]
             if tag<=2:
-                client = MongoClient("mongodb://127.0.0.1:27017/")
+                client = MongoClient("mongodb://140.114.89.210:27017/")
                 mydb = client["Command"]
                 collection_task = mydb.tasks
                 data=pd.DataFrame(task[tag]['id']==id)
                 task[tag]=task[tag].loc[task[tag]['id']!=id]
                 collection_task.delete_one({"id":id})
-                client_MQTT.publish("task", "task has been update")
+                client_MQTT.publish("task", "100")
             else:
                 data=pd.DataFrame(task[tag-3]['id']==id)
                 add_task[tag-3]=add_task[tag-3].loc[task[tag-3]['id']!=id]
@@ -499,24 +528,25 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
             task_Sig=clickdata["points"][0]["customdata"][1]
             task_Freq=clickdata["points"][0]["customdata"][2]
     figure = go.Figure()
+    figure.add_trace(go.Mesh3d(x=[32.81,32.81,0,0,32.81,32.81,0,0],y=[58.37,25.56,25.56,58.37,58.37,25.56,25.56,58.37],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
+    figure.add_trace(go.Mesh3d(x=[68.38,68.38,3.53,3.53,68.38,68.38,3.53,3.53],y=[25.56,0,0,25.56,25.56,0,0,25.56],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     customdata = [[row.id] for row in window2.itertuples()]
     figure.add_trace(go.Scatter3d(x=window2["x"], y=window2["y"], z=window2["z"],customdata=customdata,
-                                  mode='markers', marker=dict(color="#979595")))
+                                  mode='markers', marker=dict(color="#979595",symbol="square",size=6)))
 
     for i in range(3):
         if tag_task[i] and not task[i].empty:
             customdata = [[row.id,row.sig,row.freq,i] for row in task[i].itertuples()]
-            print(task[i]["x"])
             figure.add_trace(go.Scatter3d(x=task[i]["x"], y=task[i]["y"], z=task[i]["z"],customdata=customdata,
-                                          mode='markers', marker=dict(color=color[i+4])))
+                                          mode='markers', marker=dict(color=color[i+4],symbol="square",size=6)))
     for i in range(3):
         if tag_add_task[i] and not add_task[i].empty:
             customdata = [[row.id,row.sig,row.freq,i+3] for row in add_task[i].itertuples()]
             figure.add_trace(go.Scatter3d(x=add_task[i]["x"], y=add_task[i]["y"], z=add_task[i]["z"],customdata=customdata,
-                                          mode='markers', marker=dict(color=color[i+1])))
+                                          mode='markers', marker=dict(color=color[i+1],symbol="square",size=6)))
     figure.update_layout(scene=dict(
-        xaxis=dict(nticks=4, range=[-10, 70],),
-        yaxis=dict(nticks=4, range=[-10, 70],),
+        xaxis=dict(nticks=4, range=[-10, 80],),
+        yaxis=dict(nticks=4, range=[-30, 70],),
         zaxis=dict(nticks=4, range=[-10, 40],),),
         width=800, height=800, showlegend=False)
     return figure,F"Loc:W{id}",F"Loc:W{id}",F"Sig:{task_Sig}",F"Freq:{task_Freq}"
@@ -525,7 +555,7 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
     Output("prediction_graph", "figure"),
     Input("prediction", "value"))
 def update_prediction(prediction):
-    client = MongoClient("mongodb://127.0.0.1:27017/")
+    client = MongoClient("mongodb://140.114.89.210:27017/")
     mydb = client["Command"]
     collection = mydb.Simfire
     df = pd.DataFrame(list(collection.find()))
@@ -633,7 +663,7 @@ def update_fire_sim():
     a=random.sample(range(all_room),va) #fire source 
     output=f"./result/dash/sim_{ii}.csv"
     Sim,Sim_real,fire_floors,hum_floors,win_floors=Get_sim(0,60,ii,a,output,time_slot)
-    client = MongoClient("mongodb://127.0.0.1:27017/")
+    client = MongoClient("mongodb://140.114.89.210:27017/")
     # Create database called animals
     mydb = client["Command"]
     # Create Collection (table) called shelterA
@@ -671,8 +701,7 @@ def on_message(client, userdata, msg):
         #     drone.loc[drone['id']==msg[0]]=new_data
         # else:
         #     drone=pd.concat([drone,new_data])
-        drone = pd.DataFrame(list(collection_drone.find()))
-        print(drone)
+        drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
     elif topic == "result":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
         # if msg[4]=="win":
@@ -693,13 +722,14 @@ def on_message(client, userdata, msg):
         'win == "Close" and fire == "None" and hum == "have"')
         result[2] = pd.DataFrame(list(collection_win.find())).query(
         'win == "Open" and fire == "None" and hum == "None"')
+        # update_fire_sim()
 if __name__ == '__main__':
-    client = MongoClient("mongodb://127.0.0.1:27017/")
+    client = MongoClient("mongodb://140.114.89.210:27017/")
     mydb = client["Command"]
     collection_win = mydb.wins
     collection_tasks=mydb.tasks
-    collection_drone=mydb.drones
-    drone = pd.DataFrame(list(collection_drone.find()))
+    collection_drone=mydb.WPS
+    drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
     window1 = pd.DataFrame(list(collection_win.find()))
     window2 = pd.DataFrame(list(collection_win.find()))
     result[0] = pd.DataFrame(list(collection_win.find())).query(
