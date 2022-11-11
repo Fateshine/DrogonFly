@@ -275,7 +275,7 @@ def goto(dNorth, dEast,dalt,speed,number):
         print("Current location: ",vehicle.location.local_frame)
         print("Current Speed: ",vehicle.airspeed)
         print("Current Time " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S %p")))
-        data={'Drone':number,'x':vehicle.location.local_frame.x,'y':vehicle.location.local_frame.y,'z':vehicle.location.local_frame.z,'time':str(datetime.now().strftime("%Y-%m-%d %H:%M:%S %p"))}
+        data={'Drone':number,'x':vehicle.location.local_frame.east,'y':vehicle.location.local_frame.north,'z':-vehicle.location.local_frame.down,'time':str(datetime.now().strftime("%Y-%m-%d %H:%M:%S %p"))}
         collection_sim.insert_one(data)
         # f.write("Distance to target: "+ str(remainingDistance))
         # f.write("Current location: "+ str(vehicle.location.global_frame))
