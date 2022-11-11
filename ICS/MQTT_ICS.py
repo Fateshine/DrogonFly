@@ -2,9 +2,11 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 import os
 import csv
+import dronekit_sim
 from pymongo import MongoClient
 task = [pd.DataFrame()]*3
 task_type=["dw","df","dh"]
+speed=10
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
     client.subscribe("task", 0)
@@ -24,14 +26,17 @@ def on_message(client, userdata, msg):
                 for data in task[i].itertuples():
                     writer.writerow([task_type[i],data.id,1,0.002])
         collection_drone.drop()
+        collection_sim.drop()
         os.system('python Access_2022_WP.py')
-
+        drone_WPS=pd.DataFrame(list(collection_drone,find()))
+        for i in range(drone_WPS["Drone"].idxmax()+1):
+            dronekit_sim.fly(speed)
         client.publish("drone", "100")
 
 client = MongoClient("mongodb://140.114.89.210:27017/")
 mydb = client["Command"]
 collection_tasks=mydb.tasks
-
+collection_drone=mydb.WPS
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
