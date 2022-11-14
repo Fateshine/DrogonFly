@@ -756,6 +756,6 @@ if __name__ == '__main__':
     client_MQTT = mqtt.Client()
     client_MQTT.on_connect = on_connect
     client_MQTT.on_message = on_message
-    client_MQTT.connect("127.0.0.1", 1883)
+    client_MQTT.connect("140.114.89.210", 1883)
     client_MQTT.loop_start()
     app.run_server(debug=True)
