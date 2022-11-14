@@ -11,7 +11,7 @@ collection_win {id,x,y,z,win,fire,hum,accuracy,detection_time}  for result
 collection_tasks {id,x,y,z,event,sig,freq} for task  
 collection_drone {id,x,y,z}
 
-***Please insatll MQTT broker(Mosquitto) https://mosquitto.org/ on ICS server,and assign server IP and port(1883 by default) to the dashboard code  like this :(client_MQTT.connect("server IP", 1883))***
+***Please insatll MQTT broker(Mosquitto) https://mosquitto.org/ on ICS server,and assign server IP and port(1883 by default) to the Dashboard.py & MQTT_ICS.py code  like this :(client_MQTT.connect("server IP", 1883))***
 
 
 
