@@ -28,7 +28,7 @@ def on_message(client, userdata, msg):
         collection_drone.drop()
         collection_sim.drop()
         os.system('python Access_2022_WP.py')
-        drone_WPS=pd.DataFrame(list(collection_drone,find()))
+        drone_WPS=pd.DataFrame(list(collection_drone.find()))
         for i in range(drone_WPS["Drone"].idxmax()+1):
             dronekit_sim.fly(speed)
         client.publish("drone", "100")
@@ -37,6 +37,7 @@ client = MongoClient("mongodb://140.114.89.210:27017/")
 mydb = client["Command"]
 collection_tasks=mydb.tasks
 collection_drone=mydb.WPS
+collection_sim=mydb.sim
 client = mqtt.Client()
 client.on_connect = on_connect
 client.on_message = on_message
