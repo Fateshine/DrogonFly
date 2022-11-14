@@ -2,7 +2,7 @@ import pandas as pd
 import paho.mqtt.client as mqtt
 import os
 import csv
-import dronekit_sim
+# import dronekit_sim
 from pymongo import MongoClient
 task = [pd.DataFrame()]*3
 task_type=["dw","df","dh"]
@@ -20,14 +20,14 @@ def on_message(client, userdata, msg):
         task[0] = pd.DataFrame(list(collection_tasks.find())).query('event=="win"')
         task[1] = pd.DataFrame(list(collection_tasks.find())).query('event=="fire"')
         task[2] = pd.DataFrame(list(collection_tasks.find())).query('event=="hum"')
-        with open('output.csv', 'w', newline='') as csvfile:
+        with open('output_WPS.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile, delimiter=' ')
             for i in range(3):
                 for data in task[i].itertuples():
                     writer.writerow([task_type[i],data.id,1,0.002])
         collection_drone.drop()
         collection_sim.drop()
-        os.system('python Access_2022_WP.py')
+        os.system('python ./ICS/Access_2022_WP.py')
         drone_WPS=pd.DataFrame(list(collection_drone.find()))
         for i in range(drone_WPS["Drone"].idxmax()+1):
             dronekit_sim.fly(speed)

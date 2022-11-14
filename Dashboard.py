@@ -25,6 +25,7 @@ tag_task = [True]*3
 tag_result = [True]*3
 tag_add_task = [True]*3
 drone=pd.DataFrame()
+drone_sim=pd.DataFrame()
 result = [pd.DataFrame()]*3
 task = [pd.DataFrame()]*3
 add_task = [pd.DataFrame()]*3
@@ -374,7 +375,11 @@ def update_picture(drone_tag, detection):
     #     'win == "Close" and fire == "None" and hum == "have"')
     #     result[2] = pd.DataFrame(list(collection_win.find())).query(
     #     'win == "Open" and fire == "None" and hum == "None"')
-    figure = go.Figure()
+    # figure = go.Figure()
+    if not drone_sim.empty:
+        figure = px.scatter_3d(drone_sim, x='x', y='y', z='z', color='Drone', animation_frame='time')
+    else:
+        figure = go.Figure()
     figure.add_trace(go.Mesh3d(x=[32.81,32.81,0,0,32.81,32.81,0,0],y=[58.37,25.56,25.56,58.37,58.37,25.56,25.56,58.37],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     figure.add_trace(go.Mesh3d(x=[68.38,68.38,3.53,3.53,68.38,68.38,3.53,3.53],y=[25.56,0,0,25.56,25.56,0,0,25.56],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     customdata = [[row.id] for row in window1.itertuples()]
@@ -691,7 +696,7 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe([("drone", 0), ("result", 0)])
 
 def on_message(client, userdata, msg):
-    global drone
+    global drone,drone_sim
     print(msg.topic+" "+ msg.payload.decode('utf-8'))
     topic=msg.topic
     msg=msg.payload.decode('utf-8').split(",")
@@ -702,6 +707,7 @@ def on_message(client, userdata, msg):
         # else:
         #     drone=pd.concat([drone,new_data])
         drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
+        drone_sim = pd.DataFrame(list(collection_sim.find()))
     elif topic == "result":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
         # if msg[4]=="win":
@@ -727,9 +733,13 @@ if __name__ == '__main__':
     client = MongoClient("mongodb://140.114.89.210:27017/")
     mydb = client["Command"]
     collection_win = mydb.wins
-    collection_tasks=mydb.tasks
-    collection_drone=mydb.WPS
-    drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
+    collection_tasks= mydb.tasks
+    collection_sim= mydb.sim
+    collection_drone= mydb.WPS
+    if len(list(collection_drone.find())) >=1 :
+        drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
+    if len(list(collection_sim.find())) >=1 :
+        drone_sim = pd.DataFrame(list(collection_sim.find()))
     window1 = pd.DataFrame(list(collection_win.find()))
     window2 = pd.DataFrame(list(collection_win.find()))
     result[0] = pd.DataFrame(list(collection_win.find())).query(

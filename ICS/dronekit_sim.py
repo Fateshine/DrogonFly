@@ -273,14 +273,14 @@ def goto(dNorth, dEast,dalt,speed,number):
         print("Distance to target: ", remainingDistance)
         print("Current location: ",vehicle.location.local_frame)
         print("Current Speed: ",vehicle.airspeed)
-        print("Current Time " + str(time.time()-start))
-        data={'Drone':number,'x':vehicle.location.local_frame.east,'y':vehicle.location.local_frame.north,'z':-vehicle.location.local_frame.down,'time':str(time.time()-start)}
+        print("Current Time " + str( math.floor(time.time()-start)))
+        data={'Drone':str(number),'x':vehicle.location.local_frame.east,'y':vehicle.location.local_frame.north,'z':-vehicle.location.local_frame.down,'time':str( math.floor(time.time()-start)),'speed':vehicle.airspeed}
         collection_sim.insert_one(data)
         # f.write("Distance to target: "+ str(remainingDistance))
         # f.write("Current location: "+ str(vehicle.location.global_frame))
         # f.write("Current Speed: "+ str(vehicle.airspeed))
         # f.write("Current Time " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S %p")))
-        if remainingDistance<=targetDistance*0.075: #Just below target, in case of undershoot.
+        if abs(remainingDistance) <= 0.25: #Just below target, in case of undershoot.
             print("Reached target")
             break;
         time.sleep(2)
@@ -288,7 +288,7 @@ def goto(dNorth, dEast,dalt,speed,number):
 def fly(speed,number):
     client = MongoClient("mongodb://140.114.89.210:27017/")
     mydb = client["Command"]
-    global drone_sim,collection_sim,start
+    global drone_sim,collection_sim,time1,start
     collection_sim=mydb.sim
     collection_drone=mydb.WPS
     drone_WPS = pd.DataFrame(list(collection_drone.find({"Drone":number}))).drop_duplicates(subset=['Drone','x','y','z']).reset_index()
@@ -305,8 +305,8 @@ def fly(speed,number):
     for i,point in enumerate(drone_WPS.itertuples()):
         if i==0:
             continue
-        goto(point.x-point_last[0], point.y-point_last[1], point.z-point_last[2],speed,number)
-        point_last=[point.x,point.y,point.z]
+        goto(point.y-point_last[0], point.x-point_last[1], point.z-point_last[2],speed,number)
+        point_last=[point.y,point.x,point.z]
     print("Setting LAND mode...")
     vehicle.mode = VehicleMode("LAND")
 
@@ -319,6 +319,8 @@ def fly(speed,number):
 
     print("Completed")
     return
+# for i in range(3):
+#         fly(10,i)
 # waypoint=[[50,50,10],[20,20,10]]
 # fly(waypoint,10)
 # path = 'output.txt'
