@@ -11,7 +11,7 @@ collection_win {id,x,y,z,win,fire,hum,accuracy,detection_time}  for result
 collection_tasks {id,x,y,z,event,sig,freq} for task  
 collection_drone {id,x,y,z}
 
-*** If you want to run MQTT Broker on your own server, please insatll Mosquitto https://mosquitto.org/ on your server,and assign server IP and port(1883 by default) to the Dashboard.py & MQTT_ICS.py code like this :(client_MQTT.connect("server IP", 1883)) ***
+***If you want to run MQTT Broker on your own server, please insatll Mosquitto https://mosquitto.org/ on your server,and assign server IP and port(1883 by default) to the Dashboard.py & MQTT_ICS.py code like this :(client_MQTT.connect("server IP", 1883))***
 
 ***dronekit_sim need to run in the enviroment above(environment.yml)***
 
