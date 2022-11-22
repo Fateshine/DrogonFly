@@ -27,19 +27,24 @@ def on_message(client, userdata, msg):
                     writer.writerow([task_type[i],data.id,1,0.002])
         collection_drone.drop()
         collection_sim.drop()
-        os.system('python ./ICS/Access_2022_WP.py')
-        client.publish("drone", "100")
+        os.system('python Access_2022_WP.py')
+        client_MQTT = mqtt.Client()
+        client_MQTT.on_connect = on_connect
+        client_MQTT.on_message = on_message
+        client_MQTT.connect("140.114.89.210", 1883)
+        client_MQTT.publish("drone", "100")
+        client_MQTT.disconnect()
         drone_WPS=pd.DataFrame(list(collection_drone.find()))
-        for i in range(drone_WPS["Drone"].idxmax()+1):
-            dronekit_sim.fly(speed)
+        for i in range(max(drone_WPS["Drone"])+1):
+            dronekit_sim.fly(speed,i)
 
 client = MongoClient("mongodb://140.114.89.210:27017/")
 mydb = client["Command"]
 collection_tasks=mydb.tasks
 collection_drone=mydb.WPS
 collection_sim=mydb.sim
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
-client.connect("140.114.89.210", 1883)
-client.loop_forever()
+client_MQTT = mqtt.Client()
+client_MQTT.on_connect = on_connect
+client_MQTT.on_message = on_message
+client_MQTT.connect("140.114.89.210", 1883)
+client_MQTT.loop_forever()

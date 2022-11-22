@@ -56,7 +56,7 @@ app.layout = html.Div([
         dcc.Tab(label='Current Status', children=[
             dbc.Row([
                 dbc.Col([
-                    dcc.Interval(id='interval_db', interval=30000, n_intervals=0),
+                    dcc.Interval(id='interval_db', interval=2000, n_intervals=0),
                     dcc.Graph(
                         id="current_graph", figure={}
                     )]),
@@ -345,13 +345,13 @@ app.layout = html.Div([
     Output("current_graph", "figure"),
     Input("current_drone", "value"),
     # Input("current_task", "value"),
-    Input("current_detection", "value")
-    # Input("interval_db",'n_intervals')
+    Input("current_detection", "value"),
+    Input("interval_db",'n_intervals')
 )
-def update_picture(drone_tag, detection):
+def update_picture(drone_tag, detection, n):
     ctx = callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    global tag_drone,window1,result
+    global tag_drone,window1,result,drone_sim
     if input_id == "current_drone":
         tag_drone = True if "drone" in drone_tag else False
     # elif input_id == "current_task":
@@ -362,7 +362,9 @@ def update_picture(drone_tag, detection):
         tag_result[0] = True if "fire" in detection else False
         tag_result[1] = True if "people" in detection else False
         tag_result[2] = True if "window" in detection else False
-    # elif input_id == "interval_db":
+    elif input_id == "interval_db":
+        if len(list(collection_sim.find())) >=1 :
+            drone_sim = pd.DataFrame(list(collection_sim.find())).drop_duplicates(subset="Drone",keep="last")
     #     client = MongoClient("mongodb://127.0.0.1:27017/")
     #     mydb = client["Command"]
     #     collection_win = mydb.wins
@@ -376,20 +378,26 @@ def update_picture(drone_tag, detection):
     #     result[2] = pd.DataFrame(list(collection_win.find())).query(
     #     'win == "Open" and fire == "None" and hum == "None"')
     # figure = go.Figure()
-    if not drone_sim.empty:
-        figure = px.scatter_3d(drone_sim, x='x', y='y', z='z', color='Drone', animation_frame='time')
-    else:
-        figure = go.Figure()
+    # if not drone_sim.empty:
+    #     figure = px.scatter_3d(drone_sim, x='x', y='y', z='z', color='Drone', animation_frame='time')
+    # else:
+    #     figure = go.Figure()
+    figure = go.Figure()
     figure.add_trace(go.Mesh3d(x=[32.81,32.81,0,0,32.81,32.81,0,0],y=[58.37,25.56,25.56,58.37,58.37,25.56,25.56,58.37],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     figure.add_trace(go.Mesh3d(x=[68.38,68.38,3.53,3.53,68.38,68.38,3.53,3.53],y=[25.56,0,0,25.56,25.56,0,0,25.56],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     customdata = [[row.id] for row in window1.itertuples()]
     figure.add_trace(go.Scatter3d(x=window1["x"], y=window1["y"], z=window1["z"],customdata=customdata,
                                   mode='markers', marker=dict(color="#979595",symbol="square",size=6)))
+    if not drone_sim.empty:
+        figure.add_trace(go.Scatter3d(x=drone_sim["x"], y=drone_sim["y"], z=drone_sim["z"],
+                                  mode='markers', marker=dict(size=6,color="#6699CC")))
     if tag_drone and not drone.empty: 
         for i in range(drone["Drone"].idxmax()+1):
             drone_tmp=drone.loc[drone['Drone'] == i].reset_index()
+            # figure.add_trace(go.Scatter3d(x=drone_tmp["x"], y=drone_tmp["y"], z=drone_tmp["z"],
+            #                             line=dict(width=2,color=f'rgb({np.random.randint(0,256)}, {np.random.randint(0,256)}, {np.random.randint(0,256)})')))
             figure.add_trace(go.Scatter3d(x=drone_tmp["x"], y=drone_tmp["y"], z=drone_tmp["z"],
-                                        line=dict(width=2,color=f'rgb({np.random.randint(0,256)}, {np.random.randint(0,256)}, {np.random.randint(0,256)})')))
+                                        line=dict(width=2,color="#6699CC")))
             for i in range(drone_tmp.shape[0]-1):
                 related_dir_x=drone_tmp["x"][i+1] - drone_tmp["x"][i]
                 related_dir_y=drone_tmp["y"][i+1] - drone_tmp["y"][i]
@@ -707,7 +715,7 @@ def on_message(client, userdata, msg):
         # else:
         #     drone=pd.concat([drone,new_data])
         drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
-        drone_sim = pd.DataFrame(list(collection_sim.find()))
+        # drone_sim = pd.DataFrame(list(collection_sim.find()))
     elif topic == "result":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
         # if msg[4]=="win":
@@ -738,8 +746,8 @@ if __name__ == '__main__':
     collection_drone= mydb.WPS
     if len(list(collection_drone.find())) >=1 :
         drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
-    if len(list(collection_sim.find())) >=1 :
-        drone_sim = pd.DataFrame(list(collection_sim.find()))
+    # if len(list(collection_sim.find())) >=1 :
+    #     drone_sim = pd.DataFrame(list(collection_sim.find()))
     window1 = pd.DataFrame(list(collection_win.find()))
     window2 = pd.DataFrame(list(collection_win.find()))
     result[0] = pd.DataFrame(list(collection_win.find())).query(
