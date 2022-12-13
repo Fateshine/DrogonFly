@@ -3,7 +3,7 @@ from dash import Dash, dcc, html, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 from numpy import False_, append
 import pandas as pd
-from fire_sim import Sim_fire2
+# from fire_sim import Sim_fire2
 from sklearn import preprocessing
 import math
 import numpy as np
@@ -25,7 +25,7 @@ tag_task = [True]*3
 tag_result = [True]*3
 tag_add_task = [True]*3
 drone=pd.DataFrame()
-drone_sim=pd.DataFrame()
+drone_status=pd.DataFrame()
 result = [pd.DataFrame()]*3
 task = [pd.DataFrame()]*3
 add_task = [pd.DataFrame()]*3
@@ -351,7 +351,7 @@ app.layout = html.Div([
 def update_picture(drone_tag, detection, n):
     ctx = callback_context
     input_id = ctx.triggered[0]["prop_id"].split(".")[0]
-    global tag_drone,window1,result,drone_sim
+    global tag_drone,window1,result,drone_status
     if input_id == "current_drone":
         tag_drone = True if "drone" in drone_tag else False
     # elif input_id == "current_task":
@@ -363,8 +363,8 @@ def update_picture(drone_tag, detection, n):
         tag_result[1] = True if "people" in detection else False
         tag_result[2] = True if "window" in detection else False
     elif input_id == "interval_db":
-        if len(list(collection_sim.find())) >=1 :
-            drone_sim = pd.DataFrame(list(collection_sim.find())).drop_duplicates(subset="Drone",keep="last")
+        if len(list(collection_status.find())) >=1 :
+            drone_status = pd.DataFrame(list(collection_status.find())).drop_duplicates(subset="Drone",keep="last")
     #     client = MongoClient("mongodb://127.0.0.1:27017/")
     #     mydb = client["Command"]
     #     collection_win = mydb.wins
@@ -388,8 +388,8 @@ def update_picture(drone_tag, detection, n):
     customdata = [[row.id] for row in window1.itertuples()]
     figure.add_trace(go.Scatter3d(x=window1["x"], y=window1["y"], z=window1["z"],customdata=customdata,
                                   mode='markers', marker=dict(color="#979595",symbol="square",size=6)))
-    if not drone_sim.empty:
-        figure.add_trace(go.Scatter3d(x=drone_sim["x"], y=drone_sim["y"], z=drone_sim["z"],
+    if not drone_status.empty:
+        figure.add_trace(go.Scatter3d(x=drone_status["x"], y=drone_status["y"], z=drone_status["z"],
                                   mode='markers', marker=dict(size=6,color="#6699CC")))
     if tag_drone and not drone.empty: 
         for i in range(drone["Drone"].idxmax()+1):
@@ -513,17 +513,24 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
         client = MongoClient("mongodb://140.114.89.210:27017/")
         mydb = client["Command"]
         collection_task = mydb.tasks
+        message_content=''
+        add_task_tmp=pd.DataFrame()
         for i in range(3):
             if not add_task[i].empty:
-                task[i]=pd.concat([task[i],add_task[i]])           
+                task[i]=pd.concat([task[i],add_task[i]]) 
+                add_task_tmp=pd.concat([add_task_tmp,add_task[i]])          
                 # collection_task.update_one({'id': id}, {'$set': {'event': data["event"]}})
                 collection_task.insert_many(add_task[i].to_dict('records'))
                 add_task[i]=add_task[i].iloc[0:0]
-        client_MQTT.publish("task", "100")
+        print(add_task_tmp)
+        message_content=add_task_tmp.to_json(orient='records')
+        print(message_content)
+        client_MQTT.publish("Task_add", message_content)
     elif input_id == "delete_btn":
         if len(clickdata["points"][0]["customdata"])>1:
             id = clickdata["points"][0]["customdata"][0]
             tag=clickdata["points"][0]["customdata"][3]
+            message_content=''
             if tag<=2:
                 client = MongoClient("mongodb://140.114.89.210:27017/")
                 mydb = client["Command"]
@@ -531,7 +538,8 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 data=pd.DataFrame(task[tag]['id']==id)
                 task[tag]=task[tag].loc[task[tag]['id']!=id]
                 collection_task.delete_one({"id":id})
-                client_MQTT.publish("task", "100")
+                message_content=data.to_json(orient='records')
+                client_MQTT.publish("Task_del", message_content)
             else:
                 data=pd.DataFrame(task[tag-3]['id']==id)
                 add_task[tag-3]=add_task[tag-3].loc[task[tag-3]['id']!=id]
@@ -704,17 +712,17 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe([("drone", 0), ("result", 0)])
 
 def on_message(client, userdata, msg):
-    global drone,drone_sim
+    global drone,drone_status
     print(msg.topic+" "+ msg.payload.decode('utf-8'))
     topic=msg.topic
     msg=msg.payload.decode('utf-8').split(",")
-    if topic == "drone":
+    if topic == "Drone Status":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z"])
         # if msg[0] in drone["id"].values:
         #     drone.loc[drone['id']==msg[0]]=new_data
         # else:
         #     drone=pd.concat([drone,new_data])
-        drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
+        drone_status = pd.read_json(msg.payload.decode('utf-8'),orient='records')
         # drone_sim = pd.DataFrame(list(collection_sim.find()))
     elif topic == "result":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
@@ -742,18 +750,18 @@ if __name__ == '__main__':
     mydb = client["Command"]
     collection_win = mydb.wins
     collection_tasks= mydb.tasks
-    collection_sim= mydb.sim
+    collection_status= mydb.status
     collection_drone= mydb.WPS
     if len(list(collection_drone.find())) >=1 :
         drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
-    # if len(list(collection_sim.find())) >=1 :
-    #     drone_sim = pd.DataFrame(list(collection_sim.find()))
+    if len(list(collection_status.find())) >=1 :
+        drone_status = pd.DataFrame(list(collection_status.find()))
     window1 = pd.DataFrame(list(collection_win.find()))
     window2 = pd.DataFrame(list(collection_win.find()))
     result[0] = pd.DataFrame(list(collection_win.find())).query(
         'win == "Close" and fire == "Burn" and hum == "None"')
     result[1] = pd.DataFrame(list(collection_win.find())).query(
-        'win == "Close" and fire == "None" and hum == "have"')
+        'win == "Close" and fire == "None" and hum == "Have"')
     result[2] = pd.DataFrame(list(collection_win.find())).query(
         'win == "Open" and fire == "None" and hum == "None"')
     if len(list(collection_tasks.find())) >=1 :
