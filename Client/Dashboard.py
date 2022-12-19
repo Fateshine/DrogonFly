@@ -26,6 +26,7 @@ tag_result = [True]*3
 tag_add_task = [True]*3
 drone=pd.DataFrame()
 drone_status=pd.DataFrame()
+Sim=pd.DataFrame()
 result = [pd.DataFrame()]*3
 task = [pd.DataFrame()]*3
 add_task = [pd.DataFrame()]*3
@@ -576,27 +577,23 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
     Output("prediction_graph", "figure"),
     Input("prediction", "value"))
 def update_prediction(prediction):
-    client = MongoClient("mongodb://140.114.89.210:27017/")
-    mydb = client["Command"]
-    collection = mydb.Simfire
-    df = pd.DataFrame(list(collection.find()))
     conditions=[]
     values=[]
     if prediction:
         if 'fire' in prediction:
-            conditions.append((df['fire'] == "Burn"))
+            conditions.append((Sim['fire'] == "Burn"))
             values.append('fire')
         if 'people' in prediction:
-            conditions.append((df['hum'] == "Have"))
+            conditions.append((Sim['hum'] == "Have"))
             values.append('hum')
         if 'window' in prediction:
-            conditions.append((df['win'] == "Open"))
+            conditions.append((Sim['win'] == "Open"))
             values.append('window')
-        df['class'] = np.select(conditions, values,default='None')
+        Sim['class'] = np.select(conditions, values,default='None')
     else:
-        df['class']='None'
+        Sim['class']='None'
     color_discrete_map={'window':color[6],'fire':color[4],'hum':color[5],'None':"#979595"}
-    fig = px.scatter_3d(df, x='x', y='y', z='z', color='class', animation_frame='time',hover_data=['hum'],color_discrete_map=color_discrete_map)
+    fig = px.scatter_3d(Sim, x='x', y='y', z='z', color='class', animation_frame='time',hover_data=['hum'],color_discrete_map=color_discrete_map)
     fig.update_layout(scene=dict(
         xaxis=dict(nticks=4, range=[-10, 70],),
         yaxis=dict(nticks=4, range=[-10, 70],),
@@ -604,115 +601,12 @@ def update_prediction(prediction):
         width=800, height=800)
     return fig
 
-def Get_sim(st,et, rseed,a,output,time_slot):  # here a is a window!!!!! 
-    lay_num=12
-    Sim_fire2(st,et,rseed,a,output,time_slot)  # write the simulation in a file.
-    Timeline=pd.read_csv(output,sep='/ ',engine='python')
-    Sim=defaultdict(dict)
-    Sim_real=defaultdict(dict)
-    win=[]
-    firs=list(Timeline['f'])
-    tmp=[i[1:-1].split(', ') for i in firs]
-    all_fire=set()
-    for i in tmp:
-        try:
-            all_fire.update([int(k) for k in i])
-        except:
-            pass
-    hum_floors=set([i//lay_num for i in all_fire]+[i//lay_num +1 for i in all_fire])
-    fire_floors=set([i//lay_num for i in all_fire])  
-    win_floors=set([i//lay_num for i in all_fire]+[i//lay_num -1 for i in all_fire])  # this layer and the lower layer. 
-    #print(f"ss {all_floors}")
-    for index,row in Timeline.iterrows():
-        #print(row)
-        tmp=row['f'][1:-1].split(', ')
-        tmps=row['f_s'][1:-1].split(', ')
-        #print(f"check  {tmp}")
-        if len(tmp)==1 and tmp[0]=='':
-            Sim[row['t']]['f']=[]
-            Sim_real[row['t']]['f']=[]
-            Sim[row['t']]['f_s']=[]
-            Sim_real[row['t']]['f_s']=[]
-        else:
-            fire=[int(tmp[i]) for i in range(len(tmp))]
-            fire_state=[int(tmps[i]) for i in range(len(tmp))]
-            Sim[row['t']]['f']=fire
-            Sim[row['t']]['f_s']=fire_state
-            Sim_real[row['t']]['f']=fire
-            Sim_real[row['t']]['f_s']=fire_state
-        tmp=row['w'][1:-1].split(', ')
-        #if len(tmp)>0:
-        winn=[int(tmp[i]) for i in range(len(tmp))]
-        win=[]
-        for i in winn:
-            if i//lay_num in win_floors: # 
-                win.append(i)
-        Sim[row['t']]['w']=win
-        Sim_real[row['t']]['w']=win
-        #except:
-            #Sim[row['t']]['w']=[]
-        tmp=row['h'][1:-1].split(', ')
-        tmps=row['h_s'][1:-1].split(', ')
-        try:
-            humm=[int(tmp[i]) for i in range(len(tmp))]
-            hum_s=[int(tmps[i]) for i in range(len(tmp))]
-            h_s=dict(zip(humm,hum_s))
-            hum=[];state=[]
-            for i in humm:
-                if i//lay_num in hum_floors:
-                    hum.append(i)
-                    state.append(h_s.get(i))
-            Sim[row['t']]['h']=hum 
-            Sim[row['t']]['h_s']=state
-            Sim_real[row['t']]['h']=hum
-            Sim_real[row['t']]['h_s']=state
-        except:
-            Sim[row['t']]['h']=[]
-            Sim[row['t']]['h_s']=[]
-            Sim_real[row['t']]['h_s']=[]
-            Sim_real[row['t']]['h']=[]     
-    return Sim,Sim_real,fire_floors, hum_floors, win_floors
-def update_fire_sim():
-    floor_num=12
-    va=3
-    rooms_d=pd.read_csv('../data/rooms.csv',sep=',')
-    room_AF=dict(zip(list(rooms_d['r']),(zip(list(rooms_d['w']),list(rooms_d['d'])))))
-    all_room=len(room_AF)*floor_num
-    ii=0
-    time_slot=1
-    random.seed(ii)
-    a=random.sample(range(all_room),va) #fire source 
-    output=f"./result/dash/sim_{ii}.csv"
-    Sim,Sim_real,fire_floors,hum_floors,win_floors=Get_sim(0,60,ii,a,output,time_slot)
-    client = MongoClient("mongodb://140.114.89.210:27017/")
-    # Create database called animals
-    mydb = client["Command"]
-    # Create Collection (table) called shelterA
-    collection = mydb.Simfire
-    windows=pd.read_csv('../data/all_win.csv',sep=' ')
-    collection.delete_many({})
-    for key, item in Sim.items():
-        for index, row in windows.iterrows():
-                if row["id"]in item['f']:
-                    record={"time": key, "id":row["id"], "x":row["v_1_x"], "y":row["v_1_y"], 
-                          "z":row["v_1_z"], 'win': 'Close', 'fire': 'Burn', 'hum': 'None'}
-                elif row["id"]in item['h']:
-                    record={"time": key, "id":row["id"], "x":row["v_1_x"], "y":row["v_1_y"], 
-                          "z":row["v_1_z"], 'win': 'Close', 'fire': 'None', 'hum': 'Have'}
-                elif row["id"]in item['w']:
-                    record={"time": key, "id":row["id"], "x":row["v_1_x"], "y":row["v_1_y"], 
-                          "z":row["v_1_z"], 'win': 'Open', 'fire': 'None', 'hum': 'None'}
-                else: 
-                    record={"time": key, "id":row["id"], "x":row["v_1_x"], "y":row["v_1_y"], 
-                          "z":row["v_1_z"], 'win': 'Close', 'fire': 'None', 'hum': 'None'}
-                collection.insert_one(record)
-    return
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
     client.subscribe([("drone", 0), ("result", 0)])
 
 def on_message(client, userdata, msg):
-    global drone,drone_status
+    global drone,drone_status,Sim
     print(msg.topic+" "+ msg.payload.decode('utf-8'))
     topic=msg.topic
     msg=msg.payload.decode('utf-8').split(",")
@@ -724,7 +618,7 @@ def on_message(client, userdata, msg):
         #     drone=pd.concat([drone,new_data])
         drone_status = pd.read_json(msg.payload.decode('utf-8'),orient='records')
         # drone_sim = pd.DataFrame(list(collection_sim.find()))
-    elif topic == "result":
+    elif topic == "Event":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
         # if msg[4]=="win":
         #     tag=0
@@ -738,6 +632,7 @@ def on_message(client, userdata, msg):
         #     result[tag].loc[result[tag]['id']==msg[0]]=new_data
         # else:
         #     result[tag]=pd.concat([result[tag],new_data])
+        Sim = pd.DataFrame(list(collection_sim.find()))
         result[0] = pd.DataFrame(list(collection_win.find())).query(
         'win == "Close" and fire == "Burn" and hum == "None"')
         result[1] = pd.DataFrame(list(collection_win.find())).query(
@@ -752,6 +647,8 @@ if __name__ == '__main__':
     collection_tasks= mydb.tasks
     collection_status= mydb.status
     collection_drone= mydb.WPS
+    collection_sim = mydb.Simfire
+    Sim = pd.DataFrame(list(collection_sim.find()))
     if len(list(collection_drone.find())) >=1 :
         drone = pd.DataFrame(list(collection_drone.find())).drop_duplicates(subset=['Drone','x','y','z'])
     if len(list(collection_status.find())) >=1 :
