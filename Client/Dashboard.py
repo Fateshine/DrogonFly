@@ -536,10 +536,13 @@ def update_picture2(task1, add_task1, add_btn,submit_btn,delete_btn, clickdata,a
                 client = MongoClient("mongodb://140.114.89.210:27017/")
                 mydb = client["Command"]
                 collection_task = mydb.tasks
-                data=pd.DataFrame(task[tag]['id']==id)
+                # print(task[tag])
+                data=task[tag].loc[task[tag]['id']==id]
+                # print(data)
                 task[tag]=task[tag].loc[task[tag]['id']!=id]
                 collection_task.delete_one({"id":id})
                 message_content=data.to_json(orient='records')
+                # print(message_content)
                 client_MQTT.publish("Task_del", message_content)
             else:
                 data=pd.DataFrame(task[tag-3]['id']==id)
