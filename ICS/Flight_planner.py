@@ -31,15 +31,12 @@ def on_message(client, userdata, msg):
         task[2]=pd.concat([task[2],df.loc[df['event'] == "hum"]]) 
     if topic == "Task_del":
         id=df["id"][0]
-        print(id)
         if df["event"][0] == "win":
            task[0]=task[0].loc[task[0]["id"]!=id]
         elif df["event"][0] == "fire":
            task[1]=task[1].loc[task[1]["id"]!=id]
         elif df["event"][0] == "hum":
            task[2]=task[2].loc[task[2]["id"]!=id]
-    for i in range(3):
-        print(task[i])
     with open('output_WPS.csv', 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=' ')
         for i in range(3):
