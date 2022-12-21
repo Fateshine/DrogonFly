@@ -20,4 +20,3 @@ collection_drone {id,x,y,z}
 ***dronekit_sim need to run in the enviroment above(environment.yml)***
 
 ***I only changed the above file, the others are the same as https://github.com/Fangqierin/Drone_SRDS***
-
