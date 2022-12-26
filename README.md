@@ -2,9 +2,11 @@
 ## Flight_planner.py
 When the task of the dashboard is changed, it will receive the MQTT message, and automatically call the code to calculate the trajectory and then publish the MQTT message to the UAV after completion.
 ## tello_class.py
-The tello class with MQTT
+The tello class with MQTT and ZMQ(image)
 ## fly_drone.py
 start the drone (In the future, the interface will be added so that pressing the command on the dashboard will automatically start the drone)
+## ZMQ_client_Example.py
+An example for the ZMQ Subscriber
 ## dronekit_sim.py
 This file is used to simulate drone.  
 currently not used
