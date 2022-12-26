@@ -29,6 +29,9 @@ if __name__ == "__main__":
         last_cRound=main_drone.cRound
         main_drone.client_MQTT.connect("140.114.89.210", 1883)
         main_drone.client_MQTT.loop_start()
+
+        main_drone.socket.bind('tcp://*:5555')
+        
         # main_drone.add_waypoints_json("waypoints.json")        
         # cRound = 0
         # check = main_drone.add_waypoints_database(f"{cRound}")
@@ -58,7 +61,7 @@ if __name__ == "__main__":
                 # check = main_drone.add_waypoints_database(f"{cRound}")
                 # if check: cRound+=1
             last_cRound=main_drone.cRound
-            main_drone.move(False)
+            main_drone.move(True)
 
             # events = pygame.event.get()
             # for event in events:

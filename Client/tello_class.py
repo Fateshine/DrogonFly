@@ -23,6 +23,8 @@ as possible
 from djitellopy import tello 
 import json
 import math
+import zmq
+import base64
 import time
 import cv2
 # import base64
@@ -54,6 +56,8 @@ class Tello_drone:
         self.client_MQTT.on_connect = self.__on_connect
         self.client_MQTT.on_message = self.__on_mesaage
 
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.PUB)
         # coordinates
         self.x = i_x
         self.y = i_y
@@ -490,15 +494,16 @@ class Tello_drone:
         '''
 
         frame = self.drone.get_frame_read().frame
-
+        buffer = cv2.imencode('.jpg', frame)[1]
+        self.socket.send(base64.b64encode(buffer))
         # STORES IMAGE TO LOCAL DATABASE
         # WITH METADATA
-        num_images = len(glob("./test_images/*"))
+        # num_images = len(glob("./test_images/*"))
 
-        frame = cv2.flip(frame, 0)
+        # frame = cv2.flip(frame, 0)
 
-        # stores image locally
-        cv2.imwrite(f'test_images/image_waypoint_{num_images}.png', frame)
+        # # stores image locally
+        # cv2.imwrite(f'test_images/image_waypoint_{num_images}.png', frame)
 
         # crops image
         # image_processing.crop(f'test_images/image_waypoint_{num_images}.png',0,600,0,900)
@@ -508,13 +513,13 @@ class Tello_drone:
         #                             f'test_images_results/image_waypoint_{num_images}_results.png')
 
         # stores path to image and other relevant metadata in the database
-        client["images"].currentImages.insert_one(
-            {
-                "path": f'./test_images/image_waypoint_{num_images}.png',
-                "location": (round(self.x),round(self.y),round(self.z)),
-                "time": "to be implemented"
-            }
-        )
+        # client["images"].currentImages.insert_one(
+        #     {
+        #         "path": f'./test_images/image_waypoint_{num_images}.png',
+        #         "location": (round(self.x),round(self.y),round(self.z)),
+        #         "time": "to be implemented"
+        #     }
+        # )
 
 
     # Get functions
