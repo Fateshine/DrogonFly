@@ -96,7 +96,7 @@ def update_fire_sim():
     a=random.sample(range(all_room),va) #fire source 
     output=f"./result/dash/sim_{ii}.csv"
     Sim,Sim_real,fire_floors,hum_floors,win_floors=Get_sim(0,60,ii,a,output,time_slot)
-    client = MongoClient("mongodb://127.0.0.1:27017/")
+    client = MongoClient("mongodb://140.114.89.210:27017/")
     # Create database called animals
     mydb = client["Command"]
     # Create Collection (table) called shelterA
