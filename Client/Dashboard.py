@@ -606,7 +606,7 @@ def update_prediction(prediction):
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
-    client.subscribe([("drone", 0), ("result", 0)])
+    client.subscribe([("drone", 0), ("result", 0), ("Event", 0)])
 
 def on_message(client, userdata, msg):
     global drone,drone_status,Sim
@@ -622,6 +622,7 @@ def on_message(client, userdata, msg):
         drone_status = pd.read_json(msg.payload.decode('utf-8'),orient='records')
         # drone_sim = pd.DataFrame(list(collection_sim.find()))
     elif topic == "Event":
+        print("RRRRRRRRRRRRR")
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
         # if msg[4]=="win":
         #     tag=0
