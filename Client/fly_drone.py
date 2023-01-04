@@ -6,7 +6,6 @@ make the drones fly around the given waypoints
 
 
 from tello_class import Tello_drone
-from grid import Grid
 import time
 import pygame
 import os

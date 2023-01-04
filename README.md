@@ -5,8 +5,8 @@ When the task of the dashboard is changed, it will receive the MQTT message, and
 The tello class with MQTT and ZMQ(image)
 ## fly_drone.py
 start the drone (In the future, the interface will be added so that pressing the command on the dashboard will automatically start the drone)
-## ZMQ_client_Example.py
-An example for the ZMQ Subscriber
+## fire_sim_interface.py
+Interface of Data Analyzer
 ## dronekit_sim.py
 This file is used to simulate drone.  
 currently not used
