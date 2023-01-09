@@ -24,13 +24,12 @@ if __name__ == "__main__":
         # screen = pygame.display.set_mode((900, 600))
 
         main_drone = Tello_drone(0, -50)
-        running = True
+        # running = True
         last_cRound=main_drone.cRound
         main_drone.client_MQTT.connect("140.114.89.210", 1883)
         main_drone.client_MQTT.loop_start()
 
         main_drone.socket.bind('tcp://*:5555')
-        
         # main_drone.add_waypoints_json("waypoints.json")        
         # cRound = 0
         # check = main_drone.add_waypoints_database(f"{cRound}")
@@ -42,37 +41,38 @@ if __name__ == "__main__":
         # cv2.destroyAllWindows()
 
         # screen = pygame.display.set_mode((900, 600))
-
+        while(not main_drone.fly):
+            pass
         main_drone.takeoff()
 
         # main_drone.move(True)
-        
+            
         t = threading.Thread(target=main_drone.send_current_position)
         t.start()
 
-        while running:
-            
-            if main_drone.get_current_waypoint() == 0:
-                main_drone.hover()
-                main_drone.reset_waypoints()
-                time.sleep(10)
-                if main_drone.cRound==last_cRound: break
+        while True:
+            print(f"main_drone.cRound{main_drone.cRound}")
+            print(f"last_cRound{last_cRound}")
+            main_drone.hover()
+            time.sleep(5)
+            if main_drone.cRound==last_cRound: break
                 # check = main_drone.add_waypoints_database(f"{cRound}")
                 # if check: cRound+=1
             last_cRound=main_drone.cRound
             main_drone.move(True)
 
-            # events = pygame.event.get()
-            # for event in events:
-            #     if event.type == pygame.QUIT:
-            #         main_drone.drone.land()
-            #         running = False
+                # events = pygame.event.get()
+                # for event in events:
+                #     if event.type == pygame.QUIT:
+                #         main_drone.drone.land()
+                #         running = False
 
 
-            #running = grid.tick()
+                #running = grid.tick()
 
     finally:
         main_drone.land()
+
 
 
 

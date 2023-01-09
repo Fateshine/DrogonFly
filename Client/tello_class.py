@@ -34,7 +34,7 @@ import cv2
 # from os import remove
 from glob import glob
 
-from mongo_dashboard import client 
+# from mongo_dashboard import client 
 import paho.mqtt.client as mqtt
 import pandas as pd
 import json
@@ -77,6 +77,7 @@ class Tello_drone:
         # the current waypoint the drone is on
         self.current_waypoint = 0
 
+        self.fly=False
         # # the total distance to the next waypoint in terms of left right foward backward
         # self.current_path_distance_xy = 0
 
@@ -109,17 +110,19 @@ class Tello_drone:
 
     def __on_mesaage(self, client, userdata, msg):
             msg_cnt=msg.payload.decode('utf-8')
-            print(msg_cnt)
+            # print(msg_cnt)
             topic=msg.topic
-            print(topic)
+            # print(topic)
             df = pd.read_json(msg_cnt,orient='records')
-            print(df)
+            # print(df)
             self.cRound+=1
             self.add_waypoints_database(df)
+            self.fly=True
 
     def takeoff(self):
         # connects the drone and makes it takeoff
         # makes drone fly to designated start height
+        print(self.drone.get_battery())
         self.z = 90
         self.drone.send_control_command("takeoff", timeout = 30)
         #self.drone.takeoff()
@@ -131,13 +134,13 @@ class Tello_drone:
         #     self.drone.move_down(90 - initial_height)
 
         # waypoints cannot be empty
-        self.waypoints.insert(0,(self.waypoints[0][0],self.waypoints[0][1],90))
+        # self.waypoints.insert(0,(self.waypoints[0][0],self.waypoints[0][1],90))
 
-        print(self.waypoints)
+        # print(self.waypoints)
 
-        self.move(False)
+        # self.move(False)
 
-        self.waypoints.pop(0)
+        # self.waypoints.pop(0)
         self.current_waypoint = 0
     
 
@@ -202,7 +205,7 @@ class Tello_drone:
         # The first element of the list is the dummy initial waypoint so we skip it
         if len(self.waypoints) == 0: return False
 
-        self.waypoints.append(self.waypoints[0])
+        # self.waypoints.append(self.waypoints[0])
 
         return True
                     
@@ -429,49 +432,51 @@ class Tello_drone:
         IF THE DRONE REACHES ONE X AND Y BEFORE IT REACHES Z IT WILL JUST
         PURELY FLY IN THE Z DIRECTION TO CORRECT THIS AND VICE VERSA
         '''
-        
         # if we reach the next waypoint
-        if len(self.waypoints) >= 2:
+        # if len(self.waypoints) >= 2:
+        self.drone.go_xyz_speed(self.waypoints[self.current_waypoint][0],self.waypoints[self.current_waypoint][1],self.waypoints[self.current_waypoint][2],10)
+        self.current_waypoint += 1
 
-            if take_picture:
-                self.drone.send_rc_control(0,0,0,0)
-                self.upload_current_frame()
-
-
+        while(self.current_waypoint + 1 <= len(self.waypoints)):
             # updating which path we are on
-            if self.current_waypoint + 1 >= len(self.waypoints): self.current_waypoint = 0
-            else: self.current_waypoint += 1
+            # if self.current_waypoint + 1 > len(self.waypoints): self.current_waypoint = 0
+            # else: self.current_waypoint += 1
 
             l_r_distance = self.waypoints[self.current_waypoint][0] - (self.waypoints[self.current_waypoint - 1] if self.current_waypoint != 0 else self.waypoints[-1])[0]
             b_f_distance = self.waypoints[self.current_waypoint][1] - (self.waypoints[self.current_waypoint - 1] if self.current_waypoint != 0 else self.waypoints[-1])[1]
             u_d_distance = self.waypoints[self.current_waypoint][2] - (self.waypoints[self.current_waypoint - 1] if self.current_waypoint != 0 else self.waypoints[-1])[2]
 
-            if abs(l_r_distance) >= 20:
-                self.drone.send_control_command("{} {}".format('right' if l_r_distance >=0 else 'left', abs(l_r_distance)),timeout = 40)
-                self.x += l_r_distance
-            elif abs(l_r_distance) > 0:
-                for _ in range(l_r_distance//10):
-                    self.drone.send_rc_control(10 * (1 if l_r_distance >=0 else -1),0,0,0)
-                    time.sleep(1)
-                self.drone.send_rc_control(0,0,0,0)
-            self.x = self.waypoints[self.current_waypoint][0]
+            self.drone.go_xyz_speed(l_r_distance,b_f_distance,u_d_distance,10)
+            # if abs(l_r_distance) >= 20:
+            #     self.drone.send_control_command("{} {}".format('right' if l_r_distance >=0 else 'left', abs(l_r_distance)),timeout = 40)
+            #     self.x += l_r_distance
+            # elif abs(l_r_distance) > 0:
+            #     for _ in range(l_r_distance//10):
+            #         self.drone.send_rc_control(10 * (1 if l_r_distance >=0 else -1),0,0,0)
+            #         time.sleep(1)
+            #     self.drone.send_rc_control(0,0,0,0)
+            # self.x = self.waypoints[self.current_waypoint][0]
 
-            if abs(b_f_distance) >= 20:
-                self.drone.send_control_command("{} {}".format('forward' if b_f_distance >=0 else 'back', abs(b_f_distance)),timeout = 40)
-            elif abs(b_f_distance) > 0:
-                for _ in range(b_f_distance//10):
-                    self.drone.send_rc_control(0,10 * (1 if l_r_distance >=0 else -1),0,0)
-                    time.sleep(1)
+            # if abs(b_f_distance) >= 20:
+            #     self.drone.send_control_command("{} {}".format('forward' if b_f_distance >=0 else 'back', abs(b_f_distance)),timeout = 40)
+            # elif abs(b_f_distance) > 0:
+            #     for _ in range(b_f_distance//10):
+            #         self.drone.send_rc_control(0,10 * (1 if l_r_distance >=0 else -1),0,0)
+            #         time.sleep(1)
+            #     self.drone.send_rc_control(0,0,0,0)
+            # self.y = self.waypoints[self.current_waypoint][1]
+            # if abs(u_d_distance) >= 20:
+            #     self.drone.send_control_command("{} {}".format('up' if u_d_distance >=0 else 'down', abs(u_d_distance)),timeout = 40)
+            # elif abs(u_d_distance) > 0:
+            #     for _ in range(u_d_distance//10):
+            #         self.drone.send_rc_control(0,0,10 * (1 if l_r_distance >=0 else -1),0)
+            #         time.sleep(1)
+            #     self.drone.send_rc_control(0,0,0,0)
+            # self.z = self.waypoints[self.current_waypoint][2]
+            self.current_waypoint += 1
+            if take_picture:
                 self.drone.send_rc_control(0,0,0,0)
-            self.y = self.waypoints[self.current_waypoint][1]
-            if abs(u_d_distance) >= 20:
-                self.drone.send_control_command("{} {}".format('up' if u_d_distance >=0 else 'down', abs(u_d_distance)),timeout = 40)
-            elif abs(u_d_distance) > 0:
-                for _ in range(u_d_distance//10):
-                    self.drone.send_rc_control(0,0,10 * (1 if l_r_distance >=0 else -1),0)
-                    time.sleep(1)
-                self.drone.send_rc_control(0,0,0,0)
-            self.z = self.waypoints[self.current_waypoint][2]
+                self.upload_current_frame()
 
     def hover(self):
         '''
@@ -494,6 +499,7 @@ class Tello_drone:
         '''
 
         frame = self.drone.get_frame_read().frame
+        # cv2.imwrite('output.jpg', frame)
         buffer = cv2.imencode('.jpg', frame)[1]
         self.socket.send(base64.b64encode(buffer))
         # STORES IMAGE TO LOCAL DATABASE
