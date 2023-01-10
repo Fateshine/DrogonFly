@@ -23,7 +23,7 @@ if __name__ == "__main__":
         # pygame.init()
         # screen = pygame.display.set_mode((900, 600))
 
-        main_drone = Tello_drone(0, -50)
+        main_drone = Tello_drone(0, 0)
         # running = True
         last_cRound=main_drone.cRound
         main_drone.client_MQTT.connect("140.114.89.210", 1883)

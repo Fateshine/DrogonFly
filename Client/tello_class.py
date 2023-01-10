@@ -61,12 +61,12 @@ class Tello_drone:
         # coordinates
         self.x = i_x
         self.y = i_y
-
+        
         # NOTE: z will be assumed by default to be at a height of 80 cm
         # because that is the takeoff altitude and we want the drone the
         # first waypoint to be its starting position after takeoff
         self.z = i_z
-
+        self.number=1
         # # current angle (in radians) the drone is traveling in
         # self.angle = 0
         self.cRound=i_r
@@ -114,7 +114,7 @@ class Tello_drone:
             topic=msg.topic
             # print(topic)
             df = pd.read_json(msg_cnt,orient='records')
-            # print(df)
+            print(df)
             self.cRound+=1
             self.add_waypoints_database(df)
             self.fly=True
@@ -447,6 +447,10 @@ class Tello_drone:
             u_d_distance = self.waypoints[self.current_waypoint][2] - (self.waypoints[self.current_waypoint - 1] if self.current_waypoint != 0 else self.waypoints[-1])[2]
 
             self.drone.go_xyz_speed(l_r_distance,b_f_distance,u_d_distance,10)
+            time.sleep(1)
+            self.x = self.waypoints[self.current_waypoint][0]
+            self.y = self.waypoints[self.current_waypoint][1]
+            self.z = 90+self.waypoints[self.current_waypoint][2]
             # if abs(l_r_distance) >= 20:
             #     self.drone.send_control_command("{} {}".format('right' if l_r_distance >=0 else 'left', abs(l_r_distance)),timeout = 40)
             #     self.x += l_r_distance
@@ -543,8 +547,9 @@ class Tello_drone:
 
     def send_current_position(self):
         while(True):
-            pos=[{'x':self.x, 'y':self.y, 'z':self.z}]
+            pos=[{'Drone':self.number,'x':self.x, 'y':self.y, 'z':self.z}]
             pos=json.dumps(pos)
+            print(pos)
             self.client_MQTT.publish("Drone Status",pos)
             time.sleep(2)
     # def get_speed(self):
