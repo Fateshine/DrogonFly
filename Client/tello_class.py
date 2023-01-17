@@ -449,9 +449,6 @@ class Tello_drone:
             self.x = self.waypoints[self.current_waypoint][0]
             self.y = self.waypoints[self.current_waypoint][1]
             self.z = 30+self.waypoints[self.current_waypoint][2]
-            pos=[{'Drone':self.number,'x':self.x, 'y':self.y, 'z':self.z}]
-            pos=json.dumps(pos)
-            self.client_MQTT.publish("Drone Status",pos)
             time.sleep(2)
             # if abs(l_r_distance) >= 20:
             #     self.drone.send_control_command("{} {}".format('right' if l_r_distance >=0 else 'left', abs(l_r_distance)),timeout = 40)
@@ -551,7 +548,7 @@ class Tello_drone:
         while(True):
             pos=[{'Drone':self.number,'x':self.x, 'y':self.y, 'z':self.z}]
             pos=json.dumps(pos)
-            print(pos)
+            # print(pos)
             self.client_MQTT.publish("Drone Status",pos)
             time.sleep(2)
     # def get_speed(self):
