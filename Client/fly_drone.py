@@ -6,14 +6,8 @@ make the drones fly around the given waypoints
 
 
 from tello_class import Tello_drone
-import time
-import pygame
-import os
-import asyncio
-import cv2
 import paho.mqtt.client as mqtt
 import threading
-
 
 if __name__ == "__main__":
     # The grid is turned off for now for performance
@@ -43,6 +37,8 @@ if __name__ == "__main__":
         # screen = pygame.display.set_mode((900, 600))
         while(not main_drone.fly):
             pass
+        # main_drone.waypoints=[[40,0,0],[40,40,0],[0,40,0],[0,0,0]]
+        # main_drone.cRound+=1
         main_drone.takeoff()
 
         # main_drone.move(True)
@@ -54,7 +50,7 @@ if __name__ == "__main__":
             print(f"main_drone.cRound{main_drone.cRound}")
             print(f"last_cRound{last_cRound}")
             main_drone.hover()
-            time.sleep(5)
+            # time.sleep(5)
             if main_drone.cRound==last_cRound: break
                 # check = main_drone.add_waypoints_database(f"{cRound}")
                 # if check: cRound+=1

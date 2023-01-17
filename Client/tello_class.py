@@ -114,7 +114,6 @@ class Tello_drone:
             topic=msg.topic
             # print(topic)
             df = pd.read_json(msg_cnt,orient='records')
-            print(df)
             self.cRound+=1
             self.add_waypoints_database(df)
             self.fly=True
@@ -123,7 +122,7 @@ class Tello_drone:
         # connects the drone and makes it takeoff
         # makes drone fly to designated start height
         print(self.drone.get_battery())
-        self.z = 90
+        self.z = 30
         self.drone.send_control_command("takeoff", timeout = 30)
         #self.drone.takeoff()
         # for _ in range(abs(round((initial_height - 90)/self.change))+1):
@@ -447,10 +446,13 @@ class Tello_drone:
             u_d_distance = self.waypoints[self.current_waypoint][2] - (self.waypoints[self.current_waypoint - 1] if self.current_waypoint != 0 else self.waypoints[-1])[2]
 
             self.drone.go_xyz_speed(l_r_distance,b_f_distance,u_d_distance,10)
-            time.sleep(1)
             self.x = self.waypoints[self.current_waypoint][0]
             self.y = self.waypoints[self.current_waypoint][1]
-            self.z = 90+self.waypoints[self.current_waypoint][2]
+            self.z = 30+self.waypoints[self.current_waypoint][2]
+            pos=[{'Drone':self.number,'x':self.x, 'y':self.y, 'z':self.z}]
+            pos=json.dumps(pos)
+            self.client_MQTT.publish("Drone Status",pos)
+            time.sleep(2)
             # if abs(l_r_distance) >= 20:
             #     self.drone.send_control_command("{} {}".format('right' if l_r_distance >=0 else 'left', abs(l_r_distance)),timeout = 40)
             #     self.x += l_r_distance
