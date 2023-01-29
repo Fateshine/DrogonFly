@@ -386,6 +386,7 @@ def update_picture(drone_tag, detection, n):
     figure = go.Figure()
     figure.add_trace(go.Mesh3d(x=[32.81,32.81,0,0,32.81,32.81,0,0],y=[58.37,25.56,25.56,58.37,58.37,25.56,25.56,58.37],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
     figure.add_trace(go.Mesh3d(x=[68.38,68.38,3.53,3.53,68.38,68.38,3.53,3.53],y=[25.56,0,0,25.56,25.56,0,0,25.56],z=[0,0,0,0,36,36,36,36],alphahull=0,opacity=.2,color="#979595"))
+    # figure.add_trace(go.Mesh3d(x=[60,60,0,0,60,60,0,0],y=[60,0,0,60,60,0,0,60],z=[0,0,0,0,60,60,60,60],alphahull=0,opacity=.2,color="#979595"))
     customdata = [[row.id] for row in window1.itertuples()]
     figure.add_trace(go.Scatter3d(x=window1["x"], y=window1["y"], z=window1["z"],customdata=customdata,
                                   mode='markers', marker=dict(color="#979595",symbol="square",size=6)))
@@ -420,18 +421,17 @@ def update_picture(drone_tag, detection, n):
                 ))
                 arrow_tip_ratio=0.1
                 arrow_starting_ratio=0.95
-    for i in range(3):
-        if tag_result[i] and not result[i].empty:
-            # customdata = [[result[i]['id'][j], result[i]["detection time"]
-            #                [j], result[i]["result"][j],result[i]["img"][j],icon[i]] for j in range(len(result[i]))]
-            # customdata=[[row.id,row.accuracy,row.detecton_time,icon[i]] for row in result[i].itertuples()]
-            customdata=[[i,i,i,icon[i]] for row in result[i].itertuples()]
-            figure.add_trace(go.Scatter3d(x=result[i]["x"], y=result[i]["y"], z=result[i]["z"],customdata=customdata,
-                                          mode='markers', marker=dict(color=color[i+4],symbol="square",size=6)))
+    # for i in range(3):
+    #     if tag_result[i] and not result[i].empty:
+    #         # customdata = [[result[i]['id'][j], result[i]["detection time"]
+    #         #                [j], result[i]["result"][j],result[i]["img"][j],icon[i]] for j in range(len(result[i]))]
+    #         # customdata=[[row.id,row.accuracy,row.detecton_time,icon[i]] for row in result[i].itertuples()]
+    #         customdata=[[i,i,i,icon[i]] for row in result[i].itertuples()]
+    #         figure.add_trace(go.Scatter3d(x=result[i]["x"], y=result[i]["y"], z=result[i]["z"],customdata=customdata,mode='markers', marker=dict(color=color[i+4],symbol="square",size=6)))
     figure.update_layout(scene=dict(
-        xaxis=dict(nticks=4, range=[-10, 80],),
-        yaxis=dict(nticks=4, range=[-30, 70],),
-        zaxis=dict(nticks=4, range=[-10, 40],),),
+        xaxis=dict(nticks=4, range=[-80, 80],),
+        yaxis=dict(nticks=4, range=[-70, 70],),
+        zaxis=dict(nticks=4, range=[-10, 90],),),
         width=800, height=800, showlegend=False)
     return figure
 
@@ -606,13 +606,13 @@ def update_prediction(prediction):
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
-    client.subscribe([("drone", 0), ("result", 0), ("Event", 0)])
+    client.subscribe([("Drone Status", 0), ("Event", 0)])
 
 def on_message(client, userdata, msg):
     global drone,drone_status,Sim
-    print(msg.topic+" "+ msg.payload.decode('utf-8'))
+    # print(msg.topic+" "+ msg.payload.decode('utf-8'))
     topic=msg.topic
-    msg=msg.payload.decode('utf-8').split(",")
+    # msg=msg.payload.decode('utf-8').split(",")
     if topic == "Drone Status":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z"])
         # if msg[0] in drone["id"].values:
@@ -620,6 +620,7 @@ def on_message(client, userdata, msg):
         # else:
         #     drone=pd.concat([drone,new_data])
         drone_status = pd.read_json(msg.payload.decode('utf-8'),orient='records')
+        # print(drone_status)
         # drone_sim = pd.DataFrame(list(collection_sim.find()))
     elif topic == "Event":
         # new_data=pd.DataFrame([[msg[0], msg[1], msg[2], msg[3]]], columns=["id", "x", "y", "z","event","sig","freq"])
